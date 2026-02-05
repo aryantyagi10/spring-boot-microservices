@@ -2,9 +2,11 @@ package com.ecommerce.order_service.Service;
 
 import com.ecommerce.order_service.DTO.OrderLineItemsDto;
 import com.ecommerce.order_service.DTO.OrderRequest;
+import com.ecommerce.order_service.DTO.OrderServiceResponse;
 import com.ecommerce.order_service.Entity.Order;
 import com.ecommerce.order_service.Entity.OrderLineItems;
 import com.ecommerce.order_service.Repository.OrderRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,15 +23,16 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
 
-
-    public void placeOrder(OrderRequest orderRequest){
+    // 1. Apply Circuit Breaker using the name "inventory" from your YAML
+    @CircuitBreaker(name = "inventory", fallbackMethod = "fallbackMethod")
+    public OrderServiceResponse placeOrder(OrderRequest orderRequest){
 
         // --- STEP 1: Check User Exists (Call User Service) ---
         // URL: http://localhost:8082/api/user/{id}
 
         try {
             webClientBuilder.build().get()
-                    .uri("http://localhost:8082/api/user/" + orderRequest.getUserId())
+                    .uri("http://user-service/api/user/" + orderRequest.getUserId())
                     .retrieve()
                     .bodyToMono(Object.class)  // We don't care about the details, just that it exists
                     .block(); // Wait for answer
@@ -46,7 +49,7 @@ public class OrderService {
 
             // Call Product Service: GET http://localhost:8080/api/product/in-stock
             Boolean isInStock = webClientBuilder.build().get()
-                    .uri("http://localhost:8080/api/product/in-stock",          //uri is the address that identifies a resource on a server
+                    .uri("http://product-service/api/product/in-stock",          //uri is the address that identifies a resource on a server
                             uriBuilder -> uriBuilder                      //uriBuilder is a helper that builds a URI step by step safely
                                     .queryParam("skuCode", item.getSkuCode())  //It is written after ? in the url - Use Case: Filter, search, sort
                                     .queryParam("quantity", item.getQuantity())
@@ -80,6 +83,14 @@ public class OrderService {
         // 3. Save to DB
         // Because of CascadeType.ALL, this saves the Order AND the Items
         orderRepository.save(order);
+
+        return new OrderServiceResponse("Order Placed Successfully", true);
+    }
+
+    // The Fallback Method
+    // This runs when Product Service is down OR Circuit is Open
+    public OrderServiceResponse fallbackMethod(OrderRequest orderRequest, RuntimeException runtimeException){
+        return new OrderServiceResponse("Oops! Something went wrong, please order after some time!", false);
     }
 
     private OrderLineItems mapToEntity(OrderLineItemsDto orderLineItemsDto){
