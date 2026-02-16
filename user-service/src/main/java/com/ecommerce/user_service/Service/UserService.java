@@ -1,11 +1,14 @@
 package com.ecommerce.user_service.Service;
 
+import com.ecommerce.user_service.DTO.LoginRequest;
 import com.ecommerce.user_service.DTO.UserRequest;
 import com.ecommerce.user_service.DTO.UserResponse;
 import com.ecommerce.user_service.Entity.User;
 import com.ecommerce.user_service.Repository.UserRepository;
+import com.ecommerce.user_service.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,6 +19,8 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
 
     public UserResponse registerUser(UserRequest userRequest){
         log.info("Creating new user ....");
@@ -24,7 +29,7 @@ public class UserService {
         User user = User.builder()
                 .username(userRequest.getUsername())
                 .email(userRequest.getEmail())
-                .password(userRequest.getPassword())
+                .password(passwordEncoder.encode(userRequest.getPassword()))
                 .build();
 
         //The above code block explained -
@@ -59,5 +64,23 @@ public class UserService {
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .build();
+    }
+
+
+    public String login(LoginRequest loginRequest){
+        log.info("Attempting to login user: {}", loginRequest.getUsername());
+
+        // 1. Find the user in the database
+        User user = userRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // 2. Verify the password
+        // .matches(raw_password_from_postman, hashed_password_from_database)
+        if(!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())){
+            throw new RuntimeException("Invalid Password");
+        }
+
+        // 3. Success!
+        return jwtUtil.generateToken(user.getUsername());
     }
 }

@@ -11,4 +11,4 @@ spring:
       server:
         git:
           uri: file:///C:/Users/2309637/OneDrive - Cognizant/Desktop/E-commerce-microservice/config-repo
-          default-label: master
+          default-label: main

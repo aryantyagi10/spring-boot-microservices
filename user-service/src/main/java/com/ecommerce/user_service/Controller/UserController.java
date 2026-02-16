@@ -1,5 +1,6 @@
 package com.ecommerce.user_service.Controller;
 
+import com.ecommerce.user_service.DTO.LoginRequest;
 import com.ecommerce.user_service.DTO.UserRequest;
 import com.ecommerce.user_service.DTO.UserResponse;
 import com.ecommerce.user_service.Service.UserService;
@@ -33,5 +34,11 @@ public class UserController {
     @ResponseStatus(HttpStatus.OK)
     public List<UserResponse> getAllUsers(){
         return userService.getAllUsers();
+    }
+
+    @PostMapping("/login")
+    @ResponseStatus(HttpStatus.OK)
+    public String login(@RequestBody LoginRequest loginRequest){
+        return userService.login(loginRequest);
     }
 }
