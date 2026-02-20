@@ -10,5 +10,5 @@ spring:
     config:
       server:
         git:
-          uri: file:///C:/Users/2309637/OneDrive - Cognizant/Desktop/E-commerce-microservice/config-repo
+          uri: file:///C:\Users\tyagi\OneDrive\Desktop\spring-boot-microservices\config-repo
           default-label: main
