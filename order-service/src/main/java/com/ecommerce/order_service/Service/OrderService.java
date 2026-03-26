@@ -8,10 +8,10 @@ import com.ecommerce.order_service.Entity.OrderLineItems;
 import com.ecommerce.order_service.Repository.OrderRepository;
 import com.ecommerce.order_service.event.OrderPlacedEvent;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -26,6 +26,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     // 1. Apply Circuit Breaker using the name "inventory" from your YAML
     @CircuitBreaker(name = "inventory", fallbackMethod = "fallbackMethod")
@@ -87,6 +88,11 @@ public class OrderService {
         // 3. Save to DB
         // Because of CascadeType.ALL, this saves the Order AND the Items
         orderRepository.save(order);
+
+
+        // the asynchronous event!
+        log.info("Sending OrderPlacedEvent to Kafka for Order: {}", order.getOrderNumber());
+        kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
 
         return new OrderServiceResponse("Order Placed Successfully", true);
     }
